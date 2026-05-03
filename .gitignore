@@ -1,0 +1,41 @@
+# Python bytecode and caches
+__pycache__/
+*.py[cod]
+*$py.class
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# Virtual environments
+venv/
+.venv/
+env/
+.env/
+
+# Local environment and secrets
+.env
+.env.*
+!.env.example
+
+# RAG/vector-store generated files
+chroma_langchain_db/
+extracted_images/
+
+# Jupyter/IPython
+.ipynb_checkpoints/
+
+# Build and packaging output
+build/
+dist/
+*.egg-info/
+
+# Logs and local runtime files
+*.log
+*.tmp
+*.sqlite
+*.sqlite3
+
+# macOS and editor files
+.DS_Store
+.vscode/
+.idea/

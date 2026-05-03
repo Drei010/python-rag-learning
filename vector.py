@@ -41,7 +41,7 @@ logger = logging.getLogger(__name__)
 # ─────────────────────────────────────────────
 EXCEL_PATH = Path(__file__).parent / "data" / "internshiplist.xlsx"
 DB_LOCATION = Path("./chroma_langchain_db")
-EMBED_MODEL = "qwen2.5-coder:7b"
+EMBED_MODEL = "qwen3.5:9b"  
 IMAGE_OUTPUT_DIR = Path("./extracted_images")
 
 

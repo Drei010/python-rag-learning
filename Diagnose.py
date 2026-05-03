@@ -1,8 +1,8 @@
 """
-diagnose.py — Run this BEFORE main.py to find exactly where the pipeline breaks.
+Diagnose.py — Run this BEFORE main.py to find exactly where the pipeline breaks.
 
 Usage:
-    python diagnose.py
+    python Diagnose.py
 
 Each step prints PASS or FAIL with details.
 """
@@ -14,7 +14,7 @@ import sys
 
 EXCEL_PATH = Path(__file__).parent / "data" / "internshiplist.xlsx"
 DB_LOCATION = Path("./chroma_langchain_db")
-EMBED_MODEL  = "qwen2.5-coder:7b"
+EMBED_MODEL  = "nomic-embed-text"
 
 SEP = "─" * 55
 

@@ -22,7 +22,7 @@ from vector import build_retriever  # uses the refactored vector module
 # ─────────────────────────────────────────────
 # Config
 # ─────────────────────────────────────────────
-MODEL_NAME = "qwen2.5-coder:7b"
+MODEL_NAME = "qwen3.5:9b"   # change to your Ollama model name
 MAX_HISTORY_TURNS = 6   # keep last N human/AI pairs in context window
 TOP_K = 5
 
