@@ -1,7 +1,13 @@
 langchain
 langchain-ollama
 langchain-chroma
+langchain-openai
+fastapi
+uvicorn
+python-multipart
+python-dotenv
 pandas
 openpyxl
+xlrd
 pillow
 pytesseract

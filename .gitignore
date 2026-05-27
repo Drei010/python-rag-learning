@@ -1,23 +1,31 @@
 # Python bytecode and caches
 __pycache__/
+**/__pycache__/
 *.py[cod]
 *$py.class
 .pytest_cache/
 .mypy_cache/
 .ruff_cache/
+.coverage
+htmlcov/
 
 # Virtual environments
 venv/
 .venv/
 env/
-.env/
+ENV/
 
 # Local environment and secrets
 .env
 .env.*
 !.env.example
 
+# Local uploaded/source data
+data/*
+!data/.gitkeep
+
 # RAG/vector-store generated files
+chrome_langchain_db/
 chroma_langchain_db/
 extracted_images/
 
@@ -34,8 +42,14 @@ dist/
 *.tmp
 *.sqlite
 *.sqlite3
+*.db
+*.db-*
+*.pid
 
 # macOS and editor files
 .DS_Store
 .vscode/
 .idea/
+
+# Render/local deployment artifacts
+.render/
