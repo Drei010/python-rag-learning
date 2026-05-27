@@ -2,6 +2,7 @@ langchain
 langchain-ollama
 langchain-chroma
 langchain-openai
+langchain-groq
 fastapi
 uvicorn
 python-multipart

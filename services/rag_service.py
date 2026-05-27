@@ -35,7 +35,35 @@ def create_llm():
     if settings.hosted_llm_provider == "openai":
         from langchain_openai import ChatOpenAI
 
-        return ChatOpenAI(model=settings.hosted_llm_model)
+        kwargs = {
+            "model": settings.hosted_llm_model,
+            "temperature": settings.hosted_llm_temperature,
+            "max_tokens": settings.hosted_llm_max_tokens,
+            "model_kwargs": {"top_p": settings.hosted_llm_top_p},
+        }
+        if settings.hosted_llm_api_key:
+            kwargs["api_key"] = settings.hosted_llm_api_key
+        if settings.hosted_llm_base_url:
+            kwargs["base_url"] = settings.hosted_llm_base_url
+
+        return ChatOpenAI(**kwargs)
+
+    if settings.hosted_llm_provider == "groq":
+        from langchain_groq import ChatGroq
+
+        kwargs = {
+            "model": settings.hosted_llm_model,
+            "temperature": settings.hosted_llm_temperature,
+            "max_tokens": settings.hosted_llm_max_tokens,
+            "model_kwargs": {"top_p": settings.hosted_llm_top_p},
+            "reasoning_effort": settings.groq_reasoning_effort,
+        }
+        if settings.hosted_llm_api_key:
+            kwargs["api_key"] = settings.hosted_llm_api_key
+        if settings.hosted_llm_base_url:
+            kwargs["groq_api_base"] = settings.hosted_llm_base_url
+
+        return ChatGroq(**kwargs)
 
     raise ValueError(f"Unsupported hosted LLM provider: {settings.hosted_llm_provider}")
 
@@ -152,7 +180,7 @@ def answer_question(question: str, session_id: str) -> str:
     retrieval_query = (
         question if not history else f"{chat_history}\nCurrent question: {question}"
     )
-    context = embed_service.retriever.invoke(retrieval_query)
+    context = embed_service.retrieve_from_all_sources(retrieval_query)
     answer = chain.invoke(
         {
             "chat_history": chat_history,
