@@ -22,18 +22,6 @@ def is_supported_excel_file(filename: str) -> bool:
     return Path(filename).suffix.lower() in settings.supported_excel_extensions
 
 
-def sanitize_filename(filename: str) -> str:
-    return Path(filename).name
-
-
-async def save_upload_file(upload_file, destination: Path) -> None:
-    settings.data_dir.mkdir(exist_ok=True)
-
-    with destination.open("wb") as output_file:
-        while chunk := await upload_file.read(1024 * 1024):
-            output_file.write(chunk)
-
-
 def row_to_document(file_path: Path, sheet_name: str, row_index: int, row) -> Document:
     fields = []
     metadata = {

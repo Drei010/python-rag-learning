@@ -6,6 +6,8 @@ from langchain_ollama import OllamaEmbeddings
 
 from core.config import settings
 from services.excel_service import load_excel_documents
+from services.pdf_service import load_pdf_documents
+from services.ppt_service import load_powerpoint_documents
 
 
 embeddings = OllamaEmbeddings(model=settings.embedding_model)
@@ -23,7 +25,13 @@ retriever = vector_store.as_retriever(search_kwargs={"k": settings.retriever_k})
 def refresh_vector_store() -> int:
     global documents, ids, retriever
 
-    documents, ids = load_excel_documents()
+    excel_documents, excel_ids = load_excel_documents()
+    pdf_documents, pdf_ids = load_pdf_documents()
+    powerpoint_documents, powerpoint_ids = load_powerpoint_documents()
+
+    documents = excel_documents + pdf_documents + powerpoint_documents
+    ids = excel_ids + pdf_ids + powerpoint_ids
+
     vector_store.reset_collection()
 
     if documents:

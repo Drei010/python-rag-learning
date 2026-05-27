@@ -56,8 +56,10 @@ class Settings:
     base_dir: Path = BASE_DIR
     data_dir: Path = BASE_DIR / "data"
     db_location: Path = BASE_DIR / "chrome_langchain_db"
-    collection_name: str = "excel_files"
+    collection_name: str = "uploaded_files"
     supported_excel_extensions: FrozenSet[str] = frozenset({".xlsx", ".xls", ".xlsm"})
+    supported_pdf_extensions: FrozenSet[str] = frozenset({".pdf"})
+    supported_powerpoint_extensions: FrozenSet[str] = frozenset({".pptx", ".pptm"})
 
     local_llm_hosted: bool = _env_bool("LOCAL_LLM_HOSTED", True)
     ollama_llm_model: str = os.getenv("OLLAMA_LLM_MODEL", "gemma4")
@@ -71,6 +73,14 @@ class Settings:
         "MAX_CHAT_HISTORY_CONTENT_CHARS",
         2000,
     )
+
+    @property
+    def supported_file_extensions(self) -> FrozenSet[str]:
+        return (
+            self.supported_excel_extensions
+            | self.supported_pdf_extensions
+            | self.supported_powerpoint_extensions
+        )
 
 
 settings = Settings()

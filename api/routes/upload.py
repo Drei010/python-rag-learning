@@ -3,9 +3,9 @@ from fastapi import APIRouter, File, HTTPException, UploadFile, status
 from core.config import settings
 from models.schemas import FileUploadResponse, ReindexResponse
 from services import embed_service
-from services.excel_service import (
-    get_excel_files,
-    is_supported_excel_file,
+from services.file_service import (
+    get_supported_files,
+    is_supported_file,
     sanitize_filename,
     save_upload_file,
 )
@@ -23,10 +23,10 @@ async def upload_file(file: UploadFile = File(...)) -> FileUploadResponse:
         )
 
     filename = sanitize_filename(file.filename)
-    if not is_supported_excel_file(filename):
+    if not is_supported_file(filename):
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Only Excel files are supported.",
+            detail="Only Excel, PDF, and PowerPoint (.pptx/.pptm) files are supported.",
         )
 
     destination = settings.data_dir / filename
@@ -44,7 +44,7 @@ async def upload_file(file: UploadFile = File(...)) -> FileUploadResponse:
         destination.unlink(missing_ok=True)
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"Could not index uploaded Excel file: {exc}",
+            detail=f"Could not index uploaded file: {exc}",
         ) from exc
 
     return FileUploadResponse(
@@ -57,5 +57,5 @@ async def upload_file(file: UploadFile = File(...)) -> FileUploadResponse:
 @router.post("/reindex")
 def reindex_files() -> ReindexResponse:
     indexed_records = embed_service.refresh_vector_store()
-    files = [path.name for path in get_excel_files()]
+    files = [path.name for path in get_supported_files()]
     return ReindexResponse(indexed_records=indexed_records, files=files)
