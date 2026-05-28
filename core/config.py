@@ -11,7 +11,8 @@ def _load_env_file() -> None:
     try:
         from dotenv import load_dotenv
 
-        load_dotenv(BASE_DIR / ".env")
+        # Keep local development predictable: values in .env should win.
+        load_dotenv(BASE_DIR / ".env", override=True)
         return
     except ModuleNotFoundError:
         pass
@@ -26,7 +27,7 @@ def _load_env_file() -> None:
             continue
 
         key, value = line.split("=", 1)
-        os.environ.setdefault(key.strip(), value.strip().strip("\"'"))
+        os.environ[key.strip()] = value.strip().strip("\"'")
 
 
 def _env_bool(name: str, default: bool) -> bool:

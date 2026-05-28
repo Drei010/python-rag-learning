@@ -13,6 +13,7 @@ from services.ppt_service import load_powerpoint_documents
 def create_embeddings():
     if settings.local_llm_hosted:
         from langchain_ollama import OllamaEmbeddings
+        print("Using Ollama embeddings")
 
         return OllamaEmbeddings(model=settings.ollama_embedding_model)
 
@@ -113,12 +114,31 @@ def get_documents_matching_source_name(query: str) -> List[Document]:
     return matched_documents
 
 
+def normalize_source_name(source: str) -> str:
+    return re.sub(r"[^a-z0-9]+", "", source.lower())
+
+
+def get_sources_matching_query(query: str) -> List[str]:
+    query_tokens = normalize_search_tokens(query)
+    if not query_tokens:
+        return []
+
+    matched_sources = []
+    for source in get_indexed_sources():
+        normalized_source = normalize_source_name(source)
+        if any(token in normalized_source for token in query_tokens):
+            matched_sources.append(source)
+
+    return matched_sources
+
+
 def retrieve_from_all_sources(query: str) -> List[Document]:
     if not documents:
         return []
 
     retrieved_documents = []
     seen_ids = set()
+    matched_sources = get_sources_matching_query(query)
 
     for document in get_documents_matching_source_name(query):
         document_key = (
@@ -132,7 +152,8 @@ def retrieve_from_all_sources(query: str) -> List[Document]:
         seen_ids.add(document_key)
         retrieved_documents.append(document)
 
-    for source in get_indexed_sources():
+    target_sources = matched_sources if matched_sources else get_indexed_sources()
+    for source in target_sources:
         source_documents = vector_store.similarity_search(
             query,
             k=settings.retriever_k_per_source,

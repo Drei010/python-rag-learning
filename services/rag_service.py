@@ -13,6 +13,7 @@ template = """
 You are an expert assistant. Answer the user's question clearly and concisely.
 Use the chat history to understand follow-up questions and references to earlier messages.
 Use the retrieved context when it is relevant to the user's question.
+If the user names a specific file, prioritize records from that source file.
 
 Chat history:
 {chat_history}
