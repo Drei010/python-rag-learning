@@ -1,9 +1,12 @@
 from fastapi import APIRouter, HTTPException, status
 
-from core.config import settings
 from models.schemas import DeleteFileResponse
 from services import embed_service
-from services.file_service import sanitize_filename
+from services.file_service import (
+    delete_file_from_storage,
+    file_exists,
+    sanitize_filename,
+)
 
 
 router = APIRouter(tags=["files"])
@@ -16,16 +19,15 @@ router = APIRouter(tags=["files"])
 )
 def delete_file(filename: str) -> DeleteFileResponse:
     filename = sanitize_filename(filename)
-    file_path = settings.data_dir / filename
 
-    if not file_path.exists():
+    if not file_exists(filename):
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=f"{filename} not found.",
         )
 
     try:
-        file_path.unlink()
+        delete_file_from_storage(filename)
 
         indexed_records = embed_service.refresh_vector_store()
 

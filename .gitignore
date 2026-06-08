@@ -23,6 +23,7 @@ ENV/
 # Local uploaded/source data
 data/*
 !data/.gitkeep
+.storage_cache/
 
 # RAG/vector-store generated files
 chrome_langchain_db/

@@ -49,6 +49,18 @@ def _env_int(name: str, default: int) -> int:
         return default
 
 
+def _env_path(name: str, default: Path) -> Path:
+    value = os.getenv(name)
+    if not value:
+        return default
+
+    path = Path(value).expanduser()
+    if path.is_absolute():
+        return path
+
+    return BASE_DIR / path
+
+
 def _first_env_value(*names: str, default: str = "") -> str:
     for name in names:
         value = os.getenv(name)
@@ -64,7 +76,20 @@ _load_env_file()
 @dataclass(frozen=True)
 class Settings:
     base_dir: Path = BASE_DIR
-    data_dir: Path = BASE_DIR / "data"
+    data_dir: Path = _env_path("DATA_DIR", BASE_DIR / "data")
+    storage_backend: str = os.getenv("FILE_STORAGE_BACKEND", "local").strip().lower()
+    storage_cache_dir: Path = _env_path(
+        "STORAGE_CACHE_DIR",
+        BASE_DIR / ".storage_cache",
+    )
+    aws_s3_bucket: str = os.getenv("AWS_S3_BUCKET", os.getenv("S3_BUCKET_NAME", ""))
+    aws_s3_prefix: str = os.getenv("AWS_S3_PREFIX", os.getenv("S3_PREFIX", "")).strip("/")
+    aws_s3_region_name: str = _first_env_value(
+        "AWS_REGION_NAME",
+        "AWS_REGION",
+        "AWS_DEFAULT_REGION",
+    )
+    aws_s3_endpoint_url: str = os.getenv("AWS_S3_ENDPOINT_URL", "")
     db_location: Path = BASE_DIR / "chrome_langchain_db"
     collection_name: str = "uploaded_files"
     supported_excel_extensions: FrozenSet[str] = frozenset({".xlsx", ".xls", ".xlsm"})

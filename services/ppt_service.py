@@ -4,15 +4,13 @@ from typing import List, Tuple
 from langchain_core.documents import Document
 
 from core.config import settings
+from services.file_service import get_supported_files
 
 
 def get_powerpoint_files() -> List[Path]:
-    if not settings.data_dir.exists():
-        return []
-
     return sorted(
         path
-        for path in settings.data_dir.iterdir()
+        for path in get_supported_files()
         if path.is_file()
         and path.suffix.lower() in settings.supported_powerpoint_extensions
     )

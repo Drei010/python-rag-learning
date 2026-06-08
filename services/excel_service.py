@@ -5,15 +5,13 @@ import pandas as pd
 from langchain_core.documents import Document
 
 from core.config import settings
+from services.file_service import get_supported_files
 
 
 def get_excel_files() -> List[Path]:
-    if not settings.data_dir.exists():
-        return []
-
     return sorted(
         path
-        for path in settings.data_dir.iterdir()
+        for path in get_supported_files()
         if is_supported_excel_file(path.name) and path.is_file()
     )
 

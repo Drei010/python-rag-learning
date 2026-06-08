@@ -1,11 +1,12 @@
 from fastapi import APIRouter, File, HTTPException, UploadFile, status
 
-from core.config import settings
 from models.schemas import FileUploadResponse, ReindexResponse
 from services import embed_service
 from services.file_service import (
-    get_supported_files,
+    delete_file_from_storage,
+    file_exists,
     is_supported_file,
+    list_stored_files,
     sanitize_filename,
     save_upload_file,
 )
@@ -29,19 +30,24 @@ async def upload_file(file: UploadFile = File(...)) -> FileUploadResponse:
             detail="Only Excel, PDF, and PowerPoint (.pptx/.pptm) files are supported.",
         )
 
-    destination = settings.data_dir / filename
-    if destination.exists():
+    if file_exists(filename):
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
-            detail=f"{filename} already exists in the data folder.",
+            detail=f"{filename} already exists in file storage.",
         )
 
-    await save_upload_file(file, destination)
+    try:
+        location = await save_upload_file(file, filename)
+    except Exception as exc:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Could not save uploaded file: {exc}",
+        ) from exc
 
     try:
         indexed_records = embed_service.refresh_vector_store()
     except Exception as exc:
-        destination.unlink(missing_ok=True)
+        delete_file_from_storage(filename, missing_ok=True)
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=f"Could not index uploaded file: {exc}",
@@ -49,7 +55,7 @@ async def upload_file(file: UploadFile = File(...)) -> FileUploadResponse:
 
     return FileUploadResponse(
         filename=filename,
-        path=str(destination),
+        path=location,
         indexed_records=indexed_records,
     )
 
@@ -57,5 +63,5 @@ async def upload_file(file: UploadFile = File(...)) -> FileUploadResponse:
 @router.post("/reindex")
 def reindex_files() -> ReindexResponse:
     indexed_records = embed_service.refresh_vector_store()
-    files = [path.name for path in get_supported_files()]
+    files = list_stored_files()
     return ReindexResponse(indexed_records=indexed_records, files=files)
