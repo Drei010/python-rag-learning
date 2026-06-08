@@ -54,6 +54,7 @@ def refresh_vector_store() -> int:
     global documents, ids, retriever
 
     excel_documents, excel_ids = load_excel_documents()
+    print(f"Loaded {len(excel_documents)} Excel documents")
     pdf_documents, pdf_ids = load_pdf_documents()
     powerpoint_documents, powerpoint_ids = load_powerpoint_documents()
 

@@ -23,3 +23,8 @@ class FileUploadResponse(BaseModel):
 class ReindexResponse(BaseModel):
     indexed_records: int
     files: List[str]
+
+class DeleteFileResponse(BaseModel):
+    filename: str
+    indexed_records: int
+    message: str
