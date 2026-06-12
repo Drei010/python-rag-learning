@@ -24,6 +24,13 @@ class ReindexResponse(BaseModel):
     indexed_records: int
     files: List[str]
 
+
+class FileListResponse(BaseModel):
+    destination: str
+    location: str
+    files: List[str]
+
+
 class DeleteFileResponse(BaseModel):
     filename: str
     indexed_records: int

@@ -1,6 +1,7 @@
 from pathlib import Path
-from typing import List
+from typing import List, Tuple
 
+from core.config import settings
 from services.storage_service import file_storage
 
 
@@ -10,6 +11,21 @@ def get_supported_files() -> List[Path]:
 
 def list_stored_files() -> List[str]:
     return file_storage.list_filenames()
+
+
+def get_storage_destination() -> Tuple[str, str]:
+    if settings.storage_backend == "local":
+        return "data", str(settings.data_dir)
+
+    if settings.storage_backend == "s3":
+        location = f"s3://{settings.aws_s3_bucket}"
+        if settings.aws_s3_prefix:
+            location = f"{location}/{settings.aws_s3_prefix}"
+        return "aws", location
+
+    raise ValueError(
+        f"Unsupported storage backend: {settings.storage_backend}. Use 'local' or 's3'."
+    )
 
 
 def sync_storage_to_local() -> List[Path]:
