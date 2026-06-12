@@ -49,6 +49,20 @@ def _env_int(name: str, default: int) -> int:
         return default
 
 
+def _first_env_int(*names: str, default: int) -> int:
+    for name in names:
+        value = os.getenv(name)
+        if value is None:
+            continue
+
+        try:
+            return int(value)
+        except ValueError:
+            return default
+
+    return default
+
+
 def _env_path(name: str, default: Path) -> Path:
     value = os.getenv(name)
     if not value:
@@ -68,6 +82,51 @@ def _first_env_value(*names: str, default: str = "") -> str:
             return value
 
     return default
+
+
+def _env_local_or_hosted_mode(name: str, default: str) -> str:
+    value = os.getenv(name, default)
+    normalized = value.strip().lower()
+    if normalized in {"local", "ollama"}:
+        return "local"
+    if normalized in {"hosted", "remote"}:
+        return "hosted"
+
+    raise ValueError(f"{name} must be either 'local' or 'hosted'")
+
+
+def _env_llm_mode() -> str:
+    value = os.getenv("LLM_MODE")
+    if value:
+        return _env_local_or_hosted_mode("LLM_MODE", value)
+
+    # Backward compatibility for existing .env files. Historically this meant
+    # "use the local Ollama model" when true, despite the confusing name.
+    return "local" if _env_bool("LOCAL_LLM_HOSTED", True) else "hosted"
+
+
+def _env_chunking_mode(llm_mode: str) -> str:
+    return _env_local_or_hosted_mode("CHUNKING_MODE", llm_mode)
+
+
+def _env_embedding_mode() -> str:
+    value = os.getenv("EMBEDDING_MODE")
+    if value:
+        return _env_local_or_hosted_mode("EMBEDDING_MODE", value)
+
+    provider = os.getenv("HOSTED_EMBEDDING_PROVIDER", "").strip().lower()
+    if provider and provider not in {"local", "hash"}:
+        return "hosted"
+
+    return "local"
+
+
+def _env_hosted_embedding_provider() -> str:
+    provider = os.getenv("HOSTED_EMBEDDING_PROVIDER", "openai").strip().lower()
+    if provider in {"", "hosted"}:
+        return "openai"
+
+    return provider
 
 
 _load_env_file()
@@ -96,9 +155,11 @@ class Settings:
     supported_pdf_extensions: FrozenSet[str] = frozenset({".pdf"})
     supported_powerpoint_extensions: FrozenSet[str] = frozenset({".pptx", ".pptm"})
 
-    local_llm_hosted: bool = _env_bool("LOCAL_LLM_HOSTED", True)
+    llm_mode: str = _env_llm_mode()
     ollama_llm_model: str = os.getenv("OLLAMA_LLM_MODEL", "gemma4")
-    hosted_llm_provider: str = os.getenv("HOSTED_LLM_PROVIDER", "openai")
+    hosted_llm_provider: str = (
+        os.getenv("HOSTED_LLM_PROVIDER", "openai").strip().lower()
+    )
     hosted_llm_model: str = os.getenv("HOSTED_LLM_MODEL", "gpt-4o-mini")
     hosted_llm_api_key: str = _first_env_value(
         "HOSTED_LLM_API_KEY",
@@ -111,11 +172,56 @@ class Settings:
     hosted_llm_max_tokens: int = _env_int("HOSTED_LLM_MAX_TOKENS", 2048)
     groq_reasoning_effort: str = os.getenv("GROQ_REASONING_EFFORT", "medium")
 
+    chunking_mode: str = _env_chunking_mode(llm_mode)
+    ollama_chunking_model: str = os.getenv(
+        "OLLAMA_CHUNKING_MODEL",
+        os.getenv("OLLAMA_LLM_MODEL", "gemma4"),
+    )
+    hosted_chunking_provider: str = _first_env_value(
+        "HOSTED_CHUNKING_PROVIDER",
+        "HOSTED_LLM_CHUNKING_PROVIDER",
+        default="openai",
+    ).strip().lower()
+    hosted_chunking_model: str = _first_env_value(
+        "HOSTED_CHUNKING_MODEL",
+        "HOSTED_LLM_CHUNKING_MODEL",
+        default="gpt-4o-mini",
+    )
+    hosted_chunking_api_key: str = _first_env_value(
+        "HOSTED_CHUNKING_API_KEY",
+        "HOSTED_LLM_CHUNKING_API_KEY",
+        "OPENAI_API_KEY",
+    )
+    hosted_chunking_base_url: str = _first_env_value(
+        "HOSTED_CHUNKING_BASE_URL",
+        "HOSTED_LLM_CHUNKING_BASE_URL",
+    )
+    hosted_chunking_temperature: float = float(
+        _first_env_value(
+            "HOSTED_CHUNKING_TEMPERATURE",
+            "HOSTED_LLM_CHUNKING_TEMPERATURE",
+            default="1",
+        )
+    )
+    hosted_chunking_top_p: float = float(
+        _first_env_value(
+            "HOSTED_CHUNKING_TOP_P",
+            "HOSTED_LLM_CHUNKING_TOP_P",
+            default="1",
+        )
+    )
+    hosted_chunking_max_tokens: int = _first_env_int(
+        "HOSTED_CHUNKING_MAX_TOKENS",
+        "HOSTED_LLM_CHUNKING_MAX_TOKENS",
+        default=2048,
+    )
+
+    embedding_mode: str = _env_embedding_mode()
     ollama_embedding_model: str = os.getenv(
         "OLLAMA_EMBEDDING_MODEL",
         os.getenv("EMBEDDING_MODEL", "nomic-embed-text"),
     )
-    hosted_embedding_provider: str = os.getenv("HOSTED_EMBEDDING_PROVIDER", "local")
+    hosted_embedding_provider: str = _env_hosted_embedding_provider()
     hosted_embedding_model: str = os.getenv(
         "HOSTED_EMBEDDING_MODEL",
         "text-embedding-3-small",
@@ -134,6 +240,22 @@ class Settings:
         "MAX_CHAT_HISTORY_CONTENT_CHARS",
         2000,
     )
+
+    @property
+    def use_local_llm(self) -> bool:
+        return self.llm_mode == "local"
+
+    @property
+    def local_llm_hosted(self) -> bool:
+        return self.use_local_llm
+
+    @property
+    def use_local_chunking(self) -> bool:
+        return self.chunking_mode == "local"
+
+    @property
+    def use_local_embeddings(self) -> bool:
+        return self.embedding_mode == "local"
 
     @property
     def supported_file_extensions(self) -> FrozenSet[str]:

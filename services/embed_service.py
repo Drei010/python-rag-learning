@@ -12,16 +12,15 @@ from services.ppt_service import load_powerpoint_documents
 
 
 def create_embeddings():
-    if settings.local_llm_hosted:
+    if settings.use_local_embeddings:
         from langchain_ollama import OllamaEmbeddings
+
         print("Using Ollama embeddings")
-
-        return OllamaEmbeddings(model=settings.ollama_embedding_model)
-
-    if settings.hosted_embedding_provider == "local":
         from services.hash_embedding_service import HashEmbeddings
 
         return HashEmbeddings(dimensions=settings.local_embedding_dimensions)
+
+        return OllamaEmbeddings(model=settings.ollama_embedding_model)
 
     if settings.hosted_embedding_provider == "openai":
         from langchain_openai import OpenAIEmbeddings
@@ -35,7 +34,9 @@ def create_embeddings():
         return OpenAIEmbeddings(**kwargs)
 
     raise ValueError(
-        f"Unsupported hosted embedding provider: {settings.hosted_embedding_provider}"
+        "Unsupported hosted embedding provider: "
+        f"{settings.hosted_embedding_provider}. "
+        "Set HOSTED_EMBEDDING_PROVIDER=openai."
     )
 
 

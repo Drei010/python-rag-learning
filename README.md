@@ -48,7 +48,7 @@ source .venv/bin/activate
 pip install -r requirements.txt
 ```
 
-4. Create a `.env` file in the project root. See [Configuration](#configuration) below for available variables.
+4. Copy `.env.example` to `.env` and adjust the values for your setup. See [Configuration](#configuration) below for available variables.
 
 5. Place source files in the `data/` folder, or configure S3 storage and upload files through the API.
 
@@ -70,22 +70,44 @@ Environment variables are loaded from `.env`. Common settings:
 
 ### LLM
 
+Set `LLM_MODE=local` to use Ollama, or `LLM_MODE=hosted` to use the hosted provider settings.
+
 | Variable | Default | Description |
 | --- | --- | --- |
-| `LOCAL_LLM_HOSTED` | `true` | Use Ollama when `true`, hosted provider when `false` |
+| `LLM_MODE` | `local` | `local` for Ollama, or `hosted` for OpenAI/Groq-compatible APIs |
 | `OLLAMA_LLM_MODEL` | `gemma4` | Ollama chat model |
-| `HOSTED_LLM_PROVIDER` | `openai` | `openai` or `groq` when not using Ollama |
+| `HOSTED_LLM_PROVIDER` | `openai` | `openai` or `groq` when `LLM_MODE=hosted` |
 | `HOSTED_LLM_MODEL` | `gpt-4o-mini` | Hosted chat model name |
 | `HOSTED_LLM_API_KEY` | — | API key for the hosted LLM provider |
+| `HOSTED_LLM_BASE_URL` | — | Optional custom base URL for compatible hosted APIs |
+| `LOCAL_LLM_HOSTED` | `true` | Legacy fallback only; ignored when `LLM_MODE` is set |
 
 ### Embeddings
 
+Set `EMBEDDING_MODE=local` to use Ollama embeddings, or `EMBEDDING_MODE=hosted` to use the hosted embedding settings. This is independent from `LLM_MODE`.
+
 | Variable | Default | Description |
 | --- | --- | --- |
+| `EMBEDDING_MODE` | `local` | `local` for Ollama embeddings, or `hosted` for hosted embeddings |
 | `OLLAMA_EMBEDDING_MODEL` | `nomic-embed-text` | Ollama embedding model |
-| `HOSTED_EMBEDDING_PROVIDER` | `local` | `local`, `openai`, or other supported provider |
+| `HOSTED_EMBEDDING_PROVIDER` | `openai` | Hosted embedding provider when `EMBEDDING_MODE=hosted` |
 | `HOSTED_EMBEDDING_MODEL` | `text-embedding-3-small` | Hosted embedding model name |
 | `HOSTED_EMBEDDING_API_KEY` | — | API key for hosted embeddings |
+| `HOSTED_EMBEDDING_BASE_URL` | — | Optional custom base URL for OpenAI-compatible embedding APIs |
+
+### Chunking
+
+Set `CHUNKING_MODE=local` to use Ollama for chunking, or `CHUNKING_MODE=hosted` to use a hosted chunking provider. If `CHUNKING_MODE` is not set, it follows `LLM_MODE`.
+
+| Variable | Default | Description |
+| --- | --- | --- |
+| `CHUNKING_MODE` | value of `LLM_MODE` | `local` for Ollama, or `hosted` for hosted chunking |
+| `OLLAMA_CHUNKING_MODEL` | `OLLAMA_LLM_MODEL` | Ollama model used for local chunking |
+| `HOSTED_CHUNKING_PROVIDER` | `openai` | Hosted chunking provider |
+| `HOSTED_CHUNKING_MODEL` | `gpt-4o-mini` | Hosted chunking model name |
+| `HOSTED_CHUNKING_API_KEY` | `OPENAI_API_KEY` | API key for hosted chunking |
+| `HOSTED_CHUNKING_BASE_URL` | — | Optional custom base URL for compatible hosted APIs |
+| `HOSTED_LLM_CHUNKING_*` | — | Legacy fallback names still supported |
 
 ### Retrieval
 
