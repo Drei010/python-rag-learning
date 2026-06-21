@@ -144,6 +144,54 @@ python3 main.py
 
 Type `q` to quit.
 
+## Testing and smoke tests
+
+### Run local tests
+
+The local test suite uses fake clients where needed, so it does not call AWS or upload anything to S3.
+
+```bash
+source venv/bin/activate
+python -m unittest discover -s tests
+```
+
+You can also run the tests without activating the virtual environment:
+
+```bash
+venv/bin/python -m unittest discover -s tests
+```
+
+### Run the S3 upload smoke test
+
+Use the smoke test when you want to confirm that the configured AWS credentials, bucket, region, and prefix can upload to S3. The script creates a tiny temporary PDF object, verifies it with S3, and deletes it before exiting.
+
+Before running it, make sure `.env` is configured for S3:
+
+```env
+FILE_STORAGE_BACKEND=s3
+AWS_S3_BUCKET=your-bucket-name
+AWS_S3_PREFIX=rag-files
+AWS_REGION=us-east-1
+AWS_ACCESS_KEY_ID=your-access-key-id
+AWS_SECRET_ACCESS_KEY=your-secret-access-key
+# AWS_SESSION_TOKEN=your-session-token
+```
+
+Then run:
+
+```bash
+venv/bin/python scripts/s3_upload_smoke_test.py
+```
+
+Expected successful output looks like:
+
+```text
+Uploaded and verified s3://your-bucket-name/rag-files/codex-s3-smoke-<id>.pdf
+Cleaned up smoke-test object.
+```
+
+If the test fails, check that the bucket exists, the region matches, credentials are valid, and the IAM or bucket policy allows `s3:PutObject`, `s3:GetObject`, and `s3:DeleteObject` for the configured prefix.
+
 ## API endpoints
 
 All routes are prefixed with `/ai`.
@@ -226,6 +274,8 @@ python-rag-learning/
 │   └── ppt_service.py   # PowerPoint parsing
 ├── data/                # Local file storage (default)
 ├── aws/                 # Example AWS IAM and bucket policies
+├── scripts/             # Utility scripts, including S3 smoke tests
+├── tests/               # Local unit tests
 ├── main.py              # FastAPI app entry point
 └── requirements.txt
 ```

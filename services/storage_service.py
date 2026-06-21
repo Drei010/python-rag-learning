@@ -1,6 +1,7 @@
 from dataclasses import dataclass
+from mimetypes import guess_type
 from pathlib import Path
-from typing import List, Protocol
+from typing import Dict, List, Protocol
 
 from core.config import settings
 
@@ -89,6 +90,7 @@ class S3FileStorage:
         cache_dir: Path,
         region_name: str = "",
         endpoint_url: str = "",
+        client=None,
     ) -> None:
         if not bucket:
             raise ValueError("AWS_S3_BUCKET must be set when FILE_STORAGE_BACKEND=s3.")
@@ -98,7 +100,7 @@ class S3FileStorage:
         self.cache_dir = cache_dir
         self.region_name = region_name or None
         self.endpoint_url = endpoint_url or None
-        self._client = None
+        self._client = client
 
     @property
     def client(self):
@@ -129,6 +131,15 @@ class S3FileStorage:
 
     def _cache_path(self, filename: str) -> Path:
         return self.cache_dir / filename
+
+    def _upload_extra_args(self, upload_file, filename: str) -> Dict[str, str]:
+        content_type = (
+            getattr(upload_file, "content_type", None) or guess_type(filename)[0]
+        )
+        if not content_type:
+            return {}
+
+        return {"ContentType": content_type}
 
     def _list_objects(self) -> List[S3Object]:
         paginator = self.client.get_paginator("list_objects_v2")
@@ -208,7 +219,22 @@ class S3FileStorage:
             while chunk := await upload_file.read(CHUNK_SIZE):
                 output_file.write(chunk)
 
-        self.client.upload_file(str(destination), self.bucket, self._key(filename))
+        upload_kwargs = {}
+        extra_args = self._upload_extra_args(upload_file, filename)
+        if extra_args:
+            upload_kwargs["ExtraArgs"] = extra_args
+
+        try:
+            self.client.upload_file(
+                str(destination),
+                self.bucket,
+                self._key(filename),
+                **upload_kwargs,
+            )
+        except Exception:
+            destination.unlink(missing_ok=True)
+            raise
+
         return self.location(filename)
 
     def delete(self, filename: str, missing_ok: bool = False) -> None:
