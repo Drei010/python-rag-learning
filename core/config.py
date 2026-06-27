@@ -89,10 +89,12 @@ def _env_local_or_hosted_mode(name: str, default: str) -> str:
     normalized = value.strip().lower()
     if normalized in {"local", "ollama"}:
         return "local"
+    if normalized in {"custom", "hash"}:
+        return "custom"
     if normalized in {"hosted", "remote"}:
         return "hosted"
 
-    raise ValueError(f"{name} must be either 'local' or 'hosted'")
+    raise ValueError(f"{name} must be either 'local', 'custom', or 'hosted'")
 
 
 def _env_llm_mode() -> str:
@@ -256,6 +258,10 @@ class Settings:
     @property
     def use_local_embeddings(self) -> bool:
         return self.embedding_mode == "local"
+
+    @property
+    def use_custom_hash_embeddings(self) -> bool:
+        return self.embedding_mode == "custom"
 
     @property
     def supported_file_extensions(self) -> FrozenSet[str]:

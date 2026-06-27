@@ -20,9 +20,9 @@ Chat sessions are tracked so follow-up questions can use prior conversation hist
 ## Prerequisites
 
 - Python 3.9+
-- [Ollama](https://ollama.com/) (default setup uses local models)
+- [Ollama](https://ollama.com/) (default setup uses local LLM and embedding models)
 - Optional: AWS credentials if using S3 storage
-- Optional: OpenAI or Groq API keys if using hosted LLMs instead of Ollama
+- Optional: OpenAI or Groq API keys if using hosted LLMs or hosted embeddings
 
 If you use the default local LLM setup, pull the required Ollama models first:
 
@@ -84,12 +84,13 @@ Set `LLM_MODE=local` to use Ollama, or `LLM_MODE=hosted` to use the hosted provi
 
 ### Embeddings
 
-Set `EMBEDDING_MODE=local` to use Ollama embeddings, or `EMBEDDING_MODE=hosted` to use the hosted embedding settings. This is independent from `LLM_MODE`.
+Set `EMBEDDING_MODE=local` to use Ollama embeddings, `EMBEDDING_MODE=custom` to use the built-in deterministic hash embeddings, or `EMBEDDING_MODE=hosted` to use the hosted embedding settings. This is independent from `LLM_MODE`.
 
 | Variable | Default | Description |
 | --- | --- | --- |
-| `EMBEDDING_MODE` | `local` | `local` for Ollama embeddings, or `hosted` for hosted embeddings |
+| `EMBEDDING_MODE` | `local` | `local` for Ollama embeddings, `custom`/`hash` for built-in hash embeddings, or `hosted` for hosted embeddings |
 | `OLLAMA_EMBEDDING_MODEL` | `nomic-embed-text` | Ollama embedding model |
+| `LOCAL_EMBEDDING_DIMENSIONS` | `384` | Vector size used by custom hash embeddings |
 | `HOSTED_EMBEDDING_PROVIDER` | `openai` | Hosted embedding provider when `EMBEDDING_MODE=hosted` |
 | `HOSTED_EMBEDDING_MODEL` | `text-embedding-3-small` | Hosted embedding model name |
 | `HOSTED_EMBEDDING_API_KEY` | — | API key for hosted embeddings |
@@ -116,6 +117,7 @@ Set `CHUNKING_MODE=local` to use Ollama for chunking, or `CHUNKING_MODE=hosted` 
 | `RETRIEVER_K` | `5` | Number of documents retrieved per query |
 | `RETRIEVER_K_PER_SOURCE` | `3` | Documents retrieved per source file |
 | `MAX_CHAT_HISTORY_MESSAGES` | `12` | Messages kept per chat session |
+| `MAX_CHAT_HISTORY_CONTENT_CHARS` | `2000` | Maximum characters retained from each chat history message |
 
 ## Starting the application
 

@@ -16,11 +16,14 @@ def create_embeddings():
         from langchain_ollama import OllamaEmbeddings
 
         print("Using Ollama embeddings")
+
+        return OllamaEmbeddings(model=settings.ollama_embedding_model)
+    
+    if settings.use_custom_hash_embeddings:
+        print("Using Custom Hash embeddings")
         from services.hash_embedding_service import HashEmbeddings
 
         return HashEmbeddings(dimensions=settings.local_embedding_dimensions)
-
-        return OllamaEmbeddings(model=settings.ollama_embedding_model)
 
     if settings.hosted_embedding_provider == "openai":
         from langchain_openai import OpenAIEmbeddings
