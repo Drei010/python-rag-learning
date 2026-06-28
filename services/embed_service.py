@@ -36,6 +36,18 @@ def create_embeddings():
 
         return OpenAIEmbeddings(**kwargs)
 
+    if settings.hosted_embedding_provider == "nvidia":
+        from  langchain_nvidia_ai_endpoints import NVIDIAEmbeddings
+        print("Using NVIDIA embeddings")
+        kwargs = {"model": settings.hosted_embedding_model}
+        if settings.hosted_embedding_api_key:
+            kwargs["api_key"] = settings.hosted_embedding_api_key
+        if settings.hosted_embedding_base_url:
+            kwargs["base_url"] = settings.hosted_embedding_base_url
+
+        return NVIDIAEmbeddings(**kwargs)
+
+
     raise ValueError(
         "Unsupported hosted embedding provider: "
         f"{settings.hosted_embedding_provider}. "

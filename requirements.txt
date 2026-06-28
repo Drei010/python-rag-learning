@@ -3,6 +3,7 @@ langchain-ollama
 langchain-chroma
 langchain-openai
 langchain-groq
+langchain_nvidia_ai_endpoints
 fastapi
 uvicorn
 python-multipart
