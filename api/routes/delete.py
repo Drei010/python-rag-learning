@@ -1,6 +1,6 @@
 from fastapi import APIRouter, HTTPException, status
 
-from models.schemas import DeleteFileResponse
+from models.schemas import DeleteFilesResponse, DeleteFilesRequest
 from services import embed_service
 from services.file_service import (
     delete_file_from_storage,
@@ -11,34 +11,36 @@ from services.file_service import (
 
 router = APIRouter(tags=["files"])
 
-
 @router.delete(
-    "/files/{filename}",
+    "/files",
     status_code=status.HTTP_200_OK,
-    response_model=DeleteFileResponse,
+    response_model=DeleteFilesResponse,
 )
-def delete_file(filename: str) -> DeleteFileResponse:
-    filename = sanitize_filename(filename)
-
-    if not file_exists(filename):
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"{filename} not found.",
-        )
+def delete_files(request: DeleteFilesRequest) -> DeleteFilesResponse:
+    deleted = []
+    not_found = []
 
     try:
-        delete_file_from_storage(filename)
+        for filename in request.filenames:
+            filename = sanitize_filename(filename)
+
+            if file_exists(filename):
+                delete_file_from_storage(filename)
+                deleted.append(filename)
+            else:
+                not_found.append(filename)
 
         indexed_records = embed_service.refresh_vector_store()
 
-        return DeleteFileResponse(
-            filename=filename,
+        return DeleteFilesResponse(
+            deleted=deleted,
+            not_found=not_found,
             indexed_records=indexed_records,
-            message="File deleted successfully.",
+            message="Files processed successfully.",
         )
 
     except Exception as exc:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Could not delete file: {exc}",
+            detail=f"Could not delete files: {exc}",
         ) from exc

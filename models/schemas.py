@@ -31,7 +31,11 @@ class FileListResponse(BaseModel):
     files: List[str]
 
 
-class DeleteFileResponse(BaseModel):
-    filename: str
+class DeleteFilesResponse(BaseModel):
+    deleted: List[str]
+    not_found: List[str]
     indexed_records: int
     message: str
+
+class DeleteFilesRequest(BaseModel):
+    filenames: List[str] = Field(..., min_length=1)
