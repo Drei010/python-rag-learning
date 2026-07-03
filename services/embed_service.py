@@ -5,6 +5,7 @@ from langchain_chroma import Chroma
 from langchain_core.documents import Document
 
 from core.config import settings
+from services.classifier_service import classify_excel_files
 from services.excel_service import load_excel_documents
 from services.file_service import sync_storage_to_local
 from services.pdf_service import load_pdf_documents
@@ -71,6 +72,7 @@ def refresh_vector_store() -> int:
     global documents, ids, retriever
 
     sync_storage_to_local()
+    classify_excel_files()
 
     excel_documents, excel_ids = load_excel_documents()
     print(f"Loaded {len(excel_documents)} Excel documents")
