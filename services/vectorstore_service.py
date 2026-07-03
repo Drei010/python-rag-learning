@@ -19,6 +19,9 @@ class VectorStoreBackend(Protocol):
     ) -> List[Document]:
         ...
 
+    def delete_by_ids(self, ids: List[str]) -> None:
+        ...
+
     def reset_collection(self) -> None:
         ...
 
@@ -70,6 +73,10 @@ class ChromaVectorStore:
         if filter:
             kwargs["filter"] = filter
         return self._store.similarity_search(query, **kwargs)
+
+    def delete_by_ids(self, ids: List[str]) -> None:
+        if ids:
+            self._store.delete(ids=ids)
 
     def reset_collection(self) -> None:
         self._store.reset_collection()
@@ -154,6 +161,10 @@ class HanaVectorStore:
         if filter:
             kwargs["filter"] = filter
         return self.store.similarity_search(query, **kwargs)
+
+    def delete_by_ids(self, ids: List[str]) -> None:
+        if ids:
+            self.store.delete(ids=ids)
 
     def reset_collection(self) -> None:
         self.store.delete(filter={})

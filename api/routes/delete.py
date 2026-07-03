@@ -26,11 +26,12 @@ def delete_files(request: DeleteFilesRequest) -> DeleteFilesResponse:
 
             if file_exists(filename):
                 delete_file_from_storage(filename)
+                embed_service.remove_file(filename)
                 deleted.append(filename)
             else:
                 not_found.append(filename)
 
-        indexed_records = embed_service.refresh_vector_store()
+        indexed_records = len(embed_service.documents)
 
         return DeleteFilesResponse(
             deleted=deleted,

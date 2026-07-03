@@ -45,7 +45,7 @@ async def upload_file(file: UploadFile = File(...)) -> FileUploadResponse:
         ) from exc
 
     try:
-        indexed_records = embed_service.refresh_vector_store()
+        indexed_records = embed_service.index_file(filename)
     except Exception as exc:
         delete_file_from_storage(filename, missing_ok=True)
         raise HTTPException(

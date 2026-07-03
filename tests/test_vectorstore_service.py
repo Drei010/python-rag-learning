@@ -27,6 +27,9 @@ class FakeVectorStore:
     ) -> List[Document]:
         return []
 
+    def delete_by_ids(self, ids: List[str]) -> None:
+        pass
+
     def reset_collection(self) -> None:
         pass
 
@@ -181,6 +184,34 @@ class ChromaVectorStoreTests(unittest.TestCase):
         mock_instance.as_retriever.assert_called_once_with(search_kwargs={"k": 5})
         self.assertIs(retriever, mock_retriever)
 
+    @patch("langchain_chroma.Chroma")
+    def test_delete_by_ids_delegates(self, mock_chroma_class) -> None:
+        mock_instance = MagicMock()
+        mock_chroma_class.return_value = mock_instance
+
+        store = ChromaVectorStore(
+            collection_name="test",
+            embedding_function=MagicMock(),
+            persist_directory="/tmp/test",
+        )
+
+        store.delete_by_ids(["id1", "id2"])
+        mock_instance.delete.assert_called_once_with(ids=["id1", "id2"])
+
+    @patch("langchain_chroma.Chroma")
+    def test_delete_by_ids_empty_list_does_nothing(self, mock_chroma_class) -> None:
+        mock_instance = MagicMock()
+        mock_chroma_class.return_value = mock_instance
+
+        store = ChromaVectorStore(
+            collection_name="test",
+            embedding_function=MagicMock(),
+            persist_directory="/tmp/test",
+        )
+
+        store.delete_by_ids([])
+        mock_instance.delete.assert_not_called()
+
 
 class HanaVectorStoreTests(unittest.TestCase):
     def test_missing_address_raises_value_error(self) -> None:
@@ -325,6 +356,54 @@ class HanaVectorStoreTests(unittest.TestCase):
         )
         self.assertEqual(len(results), 1)
         self.assertEqual(results[0].page_content, "found")
+
+    def test_delete_by_ids_delegates(self) -> None:
+        mock_dbapi = MagicMock()
+        mock_dbapi.connect.return_value = MagicMock()
+
+        mock_hana_module = MagicMock()
+        mock_hana_instance = MagicMock()
+        mock_hana_module.HanaDB.return_value = mock_hana_instance
+
+        store = HanaVectorStore(
+            embedding_function=MagicMock(),
+            address="hana.example.com",
+            port=443,
+            user="user",
+            password="pass",
+        )
+
+        with patch.dict(
+            "sys.modules",
+            {"hdbcli": MagicMock(dbapi=mock_dbapi), "hdbcli.dbapi": mock_dbapi, "langchain_hana": mock_hana_module},
+        ):
+            store.delete_by_ids(["id1", "id2"])
+
+        mock_hana_instance.delete.assert_called_once_with(ids=["id1", "id2"])
+
+    def test_delete_by_ids_empty_list_does_nothing(self) -> None:
+        mock_dbapi = MagicMock()
+        mock_dbapi.connect.return_value = MagicMock()
+
+        mock_hana_module = MagicMock()
+        mock_hana_instance = MagicMock()
+        mock_hana_module.HanaDB.return_value = mock_hana_instance
+
+        store = HanaVectorStore(
+            embedding_function=MagicMock(),
+            address="hana.example.com",
+            port=443,
+            user="user",
+            password="pass",
+        )
+
+        with patch.dict(
+            "sys.modules",
+            {"hdbcli": MagicMock(dbapi=mock_dbapi), "hdbcli.dbapi": mock_dbapi, "langchain_hana": mock_hana_module},
+        ):
+            store.delete_by_ids([])
+
+        mock_hana_instance.delete.assert_not_called()
 
 
 class BuildVectorStoreTests(unittest.TestCase):
