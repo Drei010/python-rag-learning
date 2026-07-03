@@ -12,7 +12,7 @@ Supported file types:
 
 1. Files are stored in a local `data/` folder or in AWS S3, depending on configuration.
 2. On startup (and after uploads or deletes), the app parses each file into searchable records.
-3. Records are embedded and stored in a Chroma vector database.
+3. Records are embedded and stored in a vector database (ChromaDB by default, or SAP HANA Cloud).
 4. When you ask a question, relevant context is retrieved and sent to an LLM to produce an answer.
 
 Chat sessions are tracked so follow-up questions can use prior conversation history.
@@ -118,6 +118,24 @@ Set `CHUNKING_MODE=local` to use Ollama for chunking, or `CHUNKING_MODE=hosted` 
 | `RETRIEVER_K_PER_SOURCE` | `3` | Documents retrieved per source file |
 | `MAX_CHAT_HISTORY_MESSAGES` | `12` | Messages kept per chat session |
 | `MAX_CHAT_HISTORY_CONTENT_CHARS` | `2000` | Maximum characters retained from each chat history message |
+
+### Vector store
+
+Set `VECTOR_DB_BACKEND=chroma` (default) to use ChromaDB, or `VECTOR_DB_BACKEND=hana` for SAP HANA Cloud Vector Engine.
+
+| Variable | Default | Description |
+| --- | --- | --- |
+| `VECTOR_DB_BACKEND` | `chroma` | `chroma` for ChromaDB, or `hana` for SAP HANA |
+| `CHROMA_MODE` | `local` | `local` for persist directory, `http` for client-server mode |
+| `CHROMA_HOST` | `localhost` | Chroma server hostname (only when `CHROMA_MODE=http`) |
+| `CHROMA_PORT` | `8000` | Chroma server port (only when `CHROMA_MODE=http`) |
+| `CHROMA_SSL` | `false` | Use HTTPS for Chroma connection |
+| `CHROMA_HEADERS` | — | JSON string of headers for Chroma auth, e.g. `{"Authorization": "Bearer token"}` |
+| `HANA_DB_ADDRESS` | — | SAP HANA host (required when backend is `hana`) |
+| `HANA_DB_PORT` | `443` | SAP HANA port |
+| `HANA_DB_USER` | — | SAP HANA username |
+| `HANA_DB_PASSWORD` | — | SAP HANA password |
+| `HANA_DB_TABLE_NAME` | `LANGCHAIN_VECTORS` | Table name for vector storage in HANA |
 
 ## Starting the application
 
@@ -271,6 +289,7 @@ python-rag-learning/
 │   ├── file_service.py  # File storage helpers
 │   ├── rag_service.py   # LLM chain and chat sessions
 │   ├── storage_service.py # Local and S3 storage backends
+│   ├── vectorstore_service.py # ChromaDB and HANA vector store backends
 │   ├── excel_service.py # Excel parsing
 │   ├── pdf_service.py   # PDF parsing
 │   └── ppt_service.py   # PowerPoint parsing
@@ -293,3 +312,22 @@ Set `FILE_STORAGE_BACKEND=local`. Files are read from and written to the `data/`
 Set `FILE_STORAGE_BACKEND=s3` and provide `AWS_S3_BUCKET` (and optionally `AWS_S3_PREFIX`). The app lists and syncs objects from S3, caches them locally, and uses the cache for indexing.
 
 Example policy templates are in the `aws/` folder.
+
+## Vector store backends
+
+### ChromaDB (default)
+
+Set `VECTOR_DB_BACKEND=chroma`. ChromaDB supports two modes:
+
+- **Local persist** (`CHROMA_MODE=local`): Data is stored in a local directory (`chrome_langchain_db/`). This is the default and requires no external services.
+- **Client-server** (`CHROMA_MODE=http`): Connects to a remote ChromaDB server via HTTP. Set `CHROMA_HOST`, `CHROMA_PORT`, and optionally `CHROMA_SSL` and `CHROMA_HEADERS` for authentication.
+
+### SAP HANA Cloud
+
+Set `VECTOR_DB_BACKEND=hana` and provide `HANA_DB_ADDRESS`, `HANA_DB_USER`, and `HANA_DB_PASSWORD`. The app connects to SAP HANA Cloud Vector Engine via `hdbcli` and stores embeddings in the configured table.
+
+Additional dependencies required:
+
+```bash
+pip install hdbcli langchain-hana
+```

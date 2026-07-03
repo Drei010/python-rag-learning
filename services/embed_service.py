@@ -1,7 +1,6 @@
 import re
 from typing import List
 
-from langchain_chroma import Chroma
 from langchain_core.documents import Document
 
 from core.config import settings
@@ -10,6 +9,7 @@ from services.excel_service import load_excel_documents
 from services.file_service import sync_storage_to_local
 from services.pdf_service import load_pdf_documents
 from services.ppt_service import load_powerpoint_documents
+from services.vectorstore_service import build_vector_store
 
 
 def create_embeddings():
@@ -57,11 +57,7 @@ def create_embeddings():
 
 
 embeddings = create_embeddings()
-vector_store = Chroma(
-    collection_name=settings.collection_name,
-    embedding_function=embeddings,
-    persist_directory=str(settings.db_location),
-)
+vector_store = build_vector_store(embeddings)
 
 documents: List[Document] = []
 ids: List[str] = []

@@ -16,3 +16,8 @@ python-pptx
 pillow
 pytesseract
 boto3
+
+# Optional: SAP HANA Cloud Vector Engine backend
+# Uncomment the following when using VECTOR_DB_BACKEND=hana
+# hdbcli
+# langchain-hana

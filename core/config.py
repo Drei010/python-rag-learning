@@ -235,6 +235,18 @@ class Settings:
     hosted_embedding_base_url: str = os.getenv("HOSTED_EMBEDDING_BASE_URL", "")
     local_embedding_dimensions: int = _env_int("LOCAL_EMBEDDING_DIMENSIONS", 384)
 
+    vector_db_backend: str = os.getenv("VECTOR_DB_BACKEND", "chroma").strip().lower()
+    chroma_mode: str = os.getenv("CHROMA_MODE", "local").strip().lower()
+    chroma_host: str = os.getenv("CHROMA_HOST", "localhost")
+    chroma_port: int = _env_int("CHROMA_PORT", 8000)
+    chroma_ssl: bool = _env_bool("CHROMA_SSL", False)
+    chroma_headers: str = os.getenv("CHROMA_HEADERS", "")
+    hana_db_address: str = os.getenv("HANA_DB_ADDRESS", "")
+    hana_db_port: int = _env_int("HANA_DB_PORT", 443)
+    hana_db_user: str = os.getenv("HANA_DB_USER", "")
+    hana_db_password: str = os.getenv("HANA_DB_PASSWORD", "")
+    hana_db_table_name: str = os.getenv("HANA_DB_TABLE_NAME", "LANGCHAIN_VECTORS")
+
     retriever_k: int = _env_int("RETRIEVER_K", 5)
     retriever_k_per_source: int = _env_int("RETRIEVER_K_PER_SOURCE", 3)
     max_chat_history_messages: int = _env_int("MAX_CHAT_HISTORY_MESSAGES", 12)
