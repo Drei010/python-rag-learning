@@ -19,6 +19,7 @@ class SheetClassification:
 
 CellGrid = List[List[Any]]
 StyleGrid = List[List[Optional[int]]]
+MergedRangeList = List[Tuple[int, int, int, int]]
 
 
 def get_excel_files() -> List[Path]:
@@ -54,6 +55,7 @@ def classify_excel_file(file_path: Path) -> List[SheetClassification]:
 def classify_sheet(
     values: CellGrid,
     styles: Optional[StyleGrid] = None,
+    merged_ranges: Optional[MergedRangeList] = None,
 ) -> Tuple[str, str]:
     bounds = _used_bounds(values)
     if bounds is None:
@@ -69,23 +71,53 @@ def classify_sheet(
             row[min_col : max_col + 1] for row in styles[min_row : max_row + 1]
         ]
 
+    # --- Check: merged cells (NEW) ---
+    if merged_ranges and _has_significant_merged_cells(merged_ranges, bounds):
+        return "unstructured", "sheet contains merged cell regions"
+
+    # --- Check: blank row inside used range (existing) ---
     if any(all(_is_blank(value) for value in row) for row in used_values):
         return "unstructured", "blank row inside used range"
 
+    # --- Check: rows have different widths (existing) ---
     column_count = max_col - min_col + 1
     if any(len(row) != column_count for row in used_values):
         return "unstructured", "rows have different widths"
 
+    # --- Check: header row contains blank cells (existing) ---
     if len(used_values) > 1 and any(_is_blank(value) for value in used_values[0]):
         return "unstructured", "header row contains blank cells"
 
+    # --- Check: sparsity (NEW) ---
+    if len(used_values) > 3 and _is_too_sparse(used_values):
+        return "unstructured", "data is too sparse"
+
+    # --- Check: multi-row headers (NEW) ---
+    if _has_multi_row_headers(used_values):
+        return "unstructured", "multiple header rows suggest hierarchical layout"
+
+    # --- Check: columns have mixed types (existing) ---
     if not _columns_have_consistent_types(used_values):
         return "unstructured", "columns contain mixed data types"
 
+    # --- Check: subtotal rows within data (NEW) ---
+    if _has_subtotal_rows(used_values):
+        return "unstructured", "subtotal rows found within data"
+
+    # --- Check: repeating group labels (NEW) ---
+    if _has_repeating_group_labels(used_values):
+        return "unstructured", "column contains repeating group labels"
+
+    # --- Check: styles not uniform (existing) ---
     if used_styles is not None and not _styles_are_uniform(used_styles):
         return "unstructured", "cell styles are not uniform"
 
     return "structured", "rows and columns are uniform"
+
+
+# ---------------------------------------------------------------------------
+# Openpyxl and pandas workbook classification
+# ---------------------------------------------------------------------------
 
 
 def _classify_openpyxl_workbook(file_path: Path) -> List[SheetClassification]:
@@ -104,7 +136,16 @@ def _classify_openpyxl_workbook(file_path: Path) -> List[SheetClassification]:
                 [cell.style_id for cell in row]
                 for row in worksheet.iter_rows()
             ]
-            classification, reason = classify_sheet(values, styles)
+            merged_ranges = [
+                (
+                    merged.min_row - 1,
+                    merged.max_row - 1,
+                    merged.min_col - 1,
+                    merged.max_col - 1,
+                )
+                for merged in worksheet.merged_cells.ranges
+            ]
+            classification, reason = classify_sheet(values, styles, merged_ranges)
             classifications.append(
                 SheetClassification(
                     file=file_path.name,
@@ -136,6 +177,183 @@ def _classify_pandas_workbook(file_path: Path) -> List[SheetClassification]:
         )
 
     return classifications
+
+
+# ---------------------------------------------------------------------------
+# NEW heuristic: merged cells
+# ---------------------------------------------------------------------------
+
+
+def _has_significant_merged_cells(
+    merged_ranges: MergedRangeList,
+    bounds: Tuple[int, int, int, int],
+) -> bool:
+    min_row, max_row, min_col, max_col = bounds
+
+    for mr_min_row, mr_max_row, mr_min_col, mr_max_col in merged_ranges:
+        if mr_max_row < min_row or mr_min_row > max_row:
+            continue
+        if mr_max_col < min_col or mr_min_col > max_col:
+            continue
+
+        row_span = mr_max_row - mr_min_row + 1
+        col_span = mr_max_col - mr_min_col + 1
+
+        if row_span > 1 or col_span > 3:
+            return True
+
+    return False
+
+
+# ---------------------------------------------------------------------------
+# NEW heuristic: sparsity
+# ---------------------------------------------------------------------------
+
+
+def _is_too_sparse(used_values: CellGrid, threshold: float = 0.5) -> bool:
+    total_cells = 0
+    blank_cells = 0
+
+    for row in used_values:
+        for value in row:
+            total_cells += 1
+            if _is_blank(value):
+                blank_cells += 1
+
+    if total_cells == 0:
+        return False
+
+    return (blank_cells / total_cells) > threshold
+
+
+# ---------------------------------------------------------------------------
+# NEW heuristic: multi-row headers
+# ---------------------------------------------------------------------------
+
+
+def _has_multi_row_headers(used_values: CellGrid) -> bool:
+    if len(used_values) < 3:
+        return False
+
+    consecutive_text_rows = 0
+    for row in used_values:
+        non_blank_values = [v for v in row if not _is_blank(v)]
+        if not non_blank_values:
+            break
+        if all(_cell_type(v) == "text" for v in non_blank_values):
+            consecutive_text_rows += 1
+        else:
+            break
+
+    if consecutive_text_rows < 2:
+        return False
+
+    remaining_rows = used_values[consecutive_text_rows:]
+    for row in remaining_rows:
+        for value in row:
+            if not _is_blank(value) and _cell_type(value) in ("number", "datetime"):
+                return True
+
+    return False
+
+
+# ---------------------------------------------------------------------------
+# NEW heuristic: subtotal rows
+# ---------------------------------------------------------------------------
+
+_SUBTOTAL_KEYWORDS = {"total", "subtotal", "sum", "grand total", "sub-total"}
+
+
+def _has_subtotal_rows(used_values: CellGrid) -> bool:
+    if len(used_values) < 3:
+        return False
+
+    header_offset = (
+        1
+        if _looks_like_header(used_values[0], used_values[1:])
+        else 0
+    )
+    data_rows = used_values[header_offset:]
+
+    if len(data_rows) < 2:
+        return False
+
+    for row in data_rows[:-1]:
+        if _row_contains_subtotal_keyword(row):
+            return True
+
+    return False
+
+
+def _row_contains_subtotal_keyword(row: List[Any]) -> bool:
+    for value in row:
+        if not isinstance(value, str):
+            continue
+        normalized = value.strip().lower()
+        if any(keyword in normalized for keyword in _SUBTOTAL_KEYWORDS):
+            return True
+    return False
+
+
+# ---------------------------------------------------------------------------
+# NEW heuristic: repeating group labels
+# ---------------------------------------------------------------------------
+
+
+def _has_repeating_group_labels(used_values: CellGrid) -> bool:
+    if len(used_values) < 5:
+        return False
+
+    header_offset = (
+        1
+        if _looks_like_header(used_values[0], used_values[1:])
+        else 0
+    )
+    data_rows = used_values[header_offset:]
+
+    if len(data_rows) < 5:
+        return False
+
+    column_count = len(data_rows[0])
+
+    for col_index in range(column_count):
+        column_values = [
+            row[col_index] if col_index < len(row) else None
+            for row in data_rows
+        ]
+        longest_run = _longest_consecutive_run(column_values)
+        if longest_run >= 4 and longest_run / len(data_rows) > 0.3:
+            return True
+
+    return False
+
+
+def _longest_consecutive_run(values: List[Any]) -> int:
+    max_run = 0
+    current_run = 0
+    previous_value = object()
+
+    for value in values:
+        if _is_blank(value):
+            current_run = 0
+            previous_value = object()
+            continue
+
+        if value == previous_value:
+            current_run += 1
+        else:
+            current_run = 1
+            previous_value = value
+
+        if current_run > max_run:
+            max_run = current_run
+
+    return max_run
+
+
+# ---------------------------------------------------------------------------
+# Existing helper functions
+# ---------------------------------------------------------------------------
 
 
 def _used_bounds(values: CellGrid) -> Optional[Tuple[int, int, int, int]]:

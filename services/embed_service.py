@@ -5,6 +5,7 @@ from typing import List, Tuple
 from langchain_core.documents import Document
 
 from core.config import settings
+from services.chunking_service import chunk_documents
 from services.classifier_service import classify_excel_file, classify_excel_files
 from services.excel_service import (
     is_supported_excel_file,
@@ -82,6 +83,8 @@ def refresh_vector_store() -> int:
 
     documents = excel_documents + pdf_documents + powerpoint_documents
     ids = excel_ids + pdf_ids + powerpoint_ids
+
+    documents, ids = chunk_documents(documents, ids)
 
     vector_store.reset_collection()
 
@@ -164,6 +167,8 @@ def index_file(filename: str) -> int:
     if not file_documents:
         return 0
 
+    file_documents, file_ids = chunk_documents(file_documents, file_ids)
+
     documents.extend(file_documents)
     ids.extend(file_ids)
     vector_store.add_documents(file_documents, ids=file_ids)
@@ -216,6 +221,8 @@ def initialize_on_startup() -> int:
 
         documents = excel_documents + pdf_documents + powerpoint_documents
         ids = excel_ids + pdf_ids + powerpoint_ids
+
+        documents, ids = chunk_documents(documents, ids)
 
         retriever = vector_store.as_retriever(search_kwargs={"k": settings.retriever_k})
         print(f"Vector store has data. Rebuilt in-memory lists: {len(documents)} documents")
