@@ -1,22 +1,22 @@
 from fastapi import APIRouter, File, HTTPException, UploadFile, status
 
-from models.schemas import FileUploadResponse, ReindexResponse
+from models.schemas import ReindexAcceptedResponse, UploadAcceptedResponse
 from services import embed_service
 from services.file_service import (
     delete_file_from_storage,
     file_exists,
     is_supported_file,
-    list_stored_files,
     sanitize_filename,
     save_upload_file,
 )
+from services.job_queue import job_queue
 
 
 router = APIRouter(tags=["files"])
 
 
-@router.post("/upload", status_code=status.HTTP_201_CREATED)
-async def upload_file(file: UploadFile = File(...)) -> FileUploadResponse:
+@router.post("/upload", status_code=status.HTTP_202_ACCEPTED)
+async def upload_file(file: UploadFile = File(...)) -> UploadAcceptedResponse:
     if not file.filename:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -44,24 +44,31 @@ async def upload_file(file: UploadFile = File(...)) -> FileUploadResponse:
             detail=f"Could not save uploaded file: {exc}",
         ) from exc
 
-    try:
-        indexed_records = embed_service.index_file(filename)
-    except Exception as exc:
-        delete_file_from_storage(filename, missing_ok=True)
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"Could not index uploaded file: {exc}",
-        ) from exc
+    def task_fn() -> int:
+        try:
+            return embed_service.index_file(filename)
+        except Exception:
+            delete_file_from_storage(filename, missing_ok=True)
+            raise
 
-    return FileUploadResponse(
+    job = job_queue.submit("index", filename, task_fn)
+
+    return UploadAcceptedResponse(
+        job_id=job.id,
         filename=filename,
         path=location,
-        indexed_records=indexed_records,
+        status="queued",
     )
 
 
-@router.post("/reindex")
-def reindex_files() -> ReindexResponse:
-    indexed_records = embed_service.refresh_vector_store()
-    files = list_stored_files()
-    return ReindexResponse(indexed_records=indexed_records, files=files)
+@router.post("/reindex", status_code=status.HTTP_202_ACCEPTED)
+def reindex_files() -> ReindexAcceptedResponse:
+    def task_fn() -> int:
+        return embed_service.refresh_vector_store()
+
+    job = job_queue.submit("reindex", None, task_fn)
+
+    return ReindexAcceptedResponse(
+        job_id=job.id,
+        status="queued",
+    )

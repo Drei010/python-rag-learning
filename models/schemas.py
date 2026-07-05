@@ -39,3 +39,30 @@ class DeleteFilesResponse(BaseModel):
 
 class DeleteFilesRequest(BaseModel):
     filenames: List[str] = Field(..., min_length=1)
+
+
+class JobStatusResponse(BaseModel):
+    job_id: str
+    status: str
+    type: str
+    filename: Optional[str] = None
+    error: Optional[str] = None
+    indexed_records: Optional[int] = None
+    created_at: str
+    completed_at: Optional[str] = None
+
+
+class JobListResponse(BaseModel):
+    jobs: List[JobStatusResponse]
+
+
+class UploadAcceptedResponse(BaseModel):
+    job_id: str
+    filename: str
+    path: str
+    status: str = "queued"
+
+
+class ReindexAcceptedResponse(BaseModel):
+    job_id: str
+    status: str = "queued"
