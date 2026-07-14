@@ -2,7 +2,7 @@ from pathlib import Path
 from typing import List, Tuple
 
 from core.config import settings
-from services.storage_service import file_storage
+from services.storage_service import FileDetail, file_storage
 
 
 def get_supported_files() -> List[Path]:
@@ -11,6 +11,10 @@ def get_supported_files() -> List[Path]:
 
 def list_stored_files() -> List[str]:
     return file_storage.list_filenames()
+
+
+def list_stored_file_details() -> List[FileDetail]:
+    return file_storage.list_file_details()
 
 
 def get_storage_destination() -> Tuple[str, str]:

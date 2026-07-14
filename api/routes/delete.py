@@ -7,6 +7,7 @@ from services.file_service import (
     file_exists,
     sanitize_filename,
 )
+from services.metadata_service import file_metadata_store
 
 
 router = APIRouter(tags=["files"])
@@ -27,6 +28,7 @@ def delete_files(request: DeleteFilesRequest) -> DeleteFilesResponse:
             if file_exists(filename):
                 delete_file_from_storage(filename)
                 embed_service.remove_file(filename)
+                file_metadata_store.remove_metadata(filename)
                 deleted.append(filename)
             else:
                 not_found.append(filename)

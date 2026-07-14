@@ -1,4 +1,5 @@
-from fastapi import APIRouter, File, HTTPException, UploadFile, status
+from fastapi import APIRouter, File, Form, HTTPException, UploadFile, status
+from typing import Optional
 
 from models.schemas import ReindexAcceptedResponse, UploadAcceptedResponse
 from services import embed_service
@@ -10,13 +11,17 @@ from services.file_service import (
     save_upload_file,
 )
 from services.job_queue import job_queue
+from services.metadata_service import file_metadata_store
 
 
 router = APIRouter(tags=["files"])
 
 
 @router.post("/upload", status_code=status.HTTP_202_ACCEPTED)
-async def upload_file(file: UploadFile = File(...)) -> UploadAcceptedResponse:
+async def upload_file(
+    file: UploadFile = File(...),
+    uploaded_by: Optional[str] = Form(default=None),
+) -> UploadAcceptedResponse:
     if not file.filename:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -43,6 +48,8 @@ async def upload_file(file: UploadFile = File(...)) -> UploadAcceptedResponse:
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Could not save uploaded file: {exc}",
         ) from exc
+
+    file_metadata_store.record_upload(filename, uploaded_by=uploaded_by)
 
     def task_fn() -> int:
         try:

@@ -1,7 +1,8 @@
 from dataclasses import dataclass
+from datetime import datetime, timezone
 from mimetypes import guess_type
 from pathlib import Path
-from typing import Dict, List, Protocol
+from typing import Dict, List, Optional, Protocol
 
 from core.config import settings
 
@@ -9,11 +10,21 @@ from core.config import settings
 CHUNK_SIZE = 1024 * 1024
 
 
+@dataclass
+class FileDetail:
+    filename: str
+    uploaded_by: Optional[str] = None
+    uploaded_at: Optional[str] = None
+
+
 class FileStorage(Protocol):
     def exists(self, filename: str) -> bool:
         ...
 
     def list_filenames(self) -> List[str]:
+        ...
+
+    def list_file_details(self) -> List[FileDetail]:
         ...
 
     def local_files(self) -> List[Path]:
@@ -44,6 +55,32 @@ class LocalFileStorage:
 
     def list_filenames(self) -> List[str]:
         return [path.name for path in self.local_files()]
+
+    def list_file_details(self) -> List[FileDetail]:
+        from services.metadata_service import file_metadata_store
+
+        all_metadata = file_metadata_store.all_metadata()
+        details = []
+        for path in self.local_files():
+            filename = path.name
+            meta = all_metadata.get(filename)
+            if meta:
+                uploaded_by = meta.get("uploaded_by") or None
+                uploaded_at = meta.get("uploaded_at") or None
+            else:
+                uploaded_by = None
+                mtime = path.stat().st_mtime
+                uploaded_at = datetime.fromtimestamp(
+                    mtime, tz=timezone.utc
+                ).isoformat()
+            details.append(
+                FileDetail(
+                    filename=filename,
+                    uploaded_by=uploaded_by,
+                    uploaded_at=uploaded_at,
+                )
+            )
+        return details
 
     def local_files(self) -> List[Path]:
         if not self.directory.exists():
@@ -80,6 +117,7 @@ class LocalFileStorage:
 class S3Object:
     filename: str
     key: str
+    last_modified: Optional[str] = None
 
 
 class S3FileStorage:
@@ -167,6 +205,45 @@ class S3FileStorage:
 
         return sorted(objects, key=lambda item: item.filename)
 
+    def _list_objects_with_dates(self) -> List[S3Object]:
+        paginator = self.client.get_paginator("list_objects_v2")
+        page_options = {"Bucket": self.bucket}
+        if self.prefix:
+            page_options["Prefix"] = f"{self.prefix}/"
+
+        objects = []
+        for page in paginator.paginate(**page_options):
+            for item in page.get("Contents", []):
+                key = item["Key"]
+                filename = Path(key).name
+                if not filename or not _is_supported_file(filename):
+                    continue
+
+                if self.prefix:
+                    relative_key = key.removeprefix(f"{self.prefix}/")
+                else:
+                    relative_key = key
+
+                if "/" in relative_key:
+                    continue
+
+                last_modified = item.get("LastModified")
+                last_modified_str = (
+                    last_modified.isoformat()
+                    if last_modified
+                    else None
+                )
+
+                objects.append(
+                    S3Object(
+                        filename=filename,
+                        key=key,
+                        last_modified=last_modified_str,
+                    )
+                )
+
+        return sorted(objects, key=lambda item: item.filename)
+
     def exists(self, filename: str) -> bool:
         try:
             self.client.head_object(Bucket=self.bucket, Key=self._key(filename))
@@ -180,6 +257,29 @@ class S3FileStorage:
 
     def list_filenames(self) -> List[str]:
         return [item.filename for item in self._list_objects()]
+
+    def list_file_details(self) -> List[FileDetail]:
+        from services.metadata_service import file_metadata_store
+
+        all_metadata = file_metadata_store.all_metadata()
+        details = []
+        for item in self._list_objects_with_dates():
+            filename = item.filename
+            meta = all_metadata.get(filename)
+            if meta:
+                uploaded_by = meta.get("uploaded_by") or None
+                uploaded_at = meta.get("uploaded_at") or None
+            else:
+                uploaded_by = None
+                uploaded_at = item.last_modified
+            details.append(
+                FileDetail(
+                    filename=filename,
+                    uploaded_by=uploaded_by,
+                    uploaded_at=uploaded_at,
+                )
+            )
+        return details
 
     def local_files(self) -> List[Path]:
         if not self.cache_dir.exists():

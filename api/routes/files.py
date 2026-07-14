@@ -1,7 +1,7 @@
 from fastapi import APIRouter, HTTPException, status
 
-from models.schemas import FileListResponse
-from services.file_service import get_storage_destination, list_stored_files
+from models.schemas import FileInfo, FileListResponse
+from services.file_service import get_storage_destination, list_stored_file_details
 
 
 router = APIRouter(tags=["files"])
@@ -11,7 +11,7 @@ router = APIRouter(tags=["files"])
 def list_files() -> FileListResponse:
     try:
         destination, location = get_storage_destination()
-        files = list_stored_files()
+        file_details = list_stored_file_details()
     except Exception as exc:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
@@ -21,5 +21,12 @@ def list_files() -> FileListResponse:
     return FileListResponse(
         destination=destination,
         location=location,
-        files=files,
+        files=[
+            FileInfo(
+                filename=detail.filename,
+                uploaded_by=detail.uploaded_by,
+                uploaded_at=detail.uploaded_at,
+            )
+            for detail in file_details
+        ],
     )

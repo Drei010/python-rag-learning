@@ -25,10 +25,16 @@ class ReindexResponse(BaseModel):
     files: List[str]
 
 
+class FileInfo(BaseModel):
+    filename: str
+    uploaded_by: Optional[str] = None
+    uploaded_at: Optional[str] = None
+
+
 class FileListResponse(BaseModel):
     destination: str
     location: str
-    files: List[str]
+    files: List[FileInfo]
 
 
 class DeleteFilesResponse(BaseModel):
